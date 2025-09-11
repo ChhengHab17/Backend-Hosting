@@ -1,5 +1,5 @@
 # Use Node base image
-FROM node:18
+FROM node:20
 
 # Install compilers/interpreters for code runner
 RUN apt-get update && apt-get install -y \
