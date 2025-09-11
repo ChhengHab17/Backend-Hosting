@@ -20,7 +20,7 @@ export const generateQr = async (req, res) => {
 
     // Call Python FastAPI microservice
     const pythonResponse = await axios.post(
-      "https://python-bakong-qr.onrender.com/generate_qr",
+      "https://python-bakong-qr.onrender.com/generate-qr",
       payload
     );
 
