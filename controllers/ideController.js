@@ -6,45 +6,36 @@ import { connections, processes } from "../index.js";
 export const runCode = (req, res) => {
   const { language, code, clientId } = req.body;
 
+  if (!clientId) return res.status(400).json({ error: "clientId is required" });
+
+  // Define runners for each language
   const runners = {
     php: { file: "code.php", cmd: ["php", "code.php"] },
     python: { file: "code.py", cmd: ["python3", "code.py"] },
     node: { file: "code.js", cmd: ["node", "code.js"] },
-    java: {
-      file: "Main.java",
-      cmd: ["sh", "-c", "javac Main.java && java Main"]
-    },
-    cpp: {
-      file: "code.cpp",
-      cmd: ["sh", "-c", "g++ code.cpp -o code && ./code"]
-    }
+    java: { file: "Main.java" },
+    cpp: { file: "code.cpp" }
   };
-
-  const tempDir = path.join(process.cwd(), "temp");
-  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
   if (!runners[language]) {
     return res.status(400).json({ error: "Unsupported language" });
   }
 
+  // Create unique temp folder per client
+  const tempDir = path.join(process.cwd(), "temp", clientId);
+  fs.mkdirSync(tempDir, { recursive: true });
+
+  // Write code to file
   const filePath = path.join(tempDir, runners[language].file);
-  fs.writeFileSync(filePath, code);
+  fs.writeFileSync(filePath, code, { encoding: "utf8" });
 
-  // Directly spawn compiler/runtime (not docker)
-  const proc = spawn(runners[language].cmd[0], runners[language].cmd.slice(1), {
-    cwd: tempDir,
-    stdio: ["pipe", "pipe", "pipe"],
-    shell: true
-  });
-
-  processes.set(clientId, proc);
   const ws = connections.get(clientId);
-
   if (ws) ws.send(JSON.stringify({ type: "start" }));
 
-  // Timeout safeguard (30s)
+  // Timeout (30s)
   const timeout = setTimeout(() => {
-    if (processes.has(clientId)) {
+    const proc = processes.get(clientId);
+    if (proc) {
       proc.kill("SIGTERM");
       processes.delete(clientId);
       if (ws) ws.send(JSON.stringify({
@@ -55,50 +46,79 @@ export const runCode = (req, res) => {
     }
   }, 30000);
 
-  // STDOUT
-  proc.stdout.on("data", (chunk) => {
-    if (ws) ws.send(JSON.stringify({
-      type: "stdout",
-      data: chunk.toString()
-    }));
-  });
+  // Helper to handle stdout/stderr
+  const attachOutput = (proc) => {
+    proc.stdout.on("data", chunk => ws?.send(JSON.stringify({ type: "stdout", data: chunk.toString() })));
+    proc.stderr.on("data", chunk => ws?.send(JSON.stringify({ type: "stderr", data: chunk.toString() })));
+    proc.on("close", code => {
+      clearTimeout(timeout);
+      processes.delete(clientId);
+      ws?.send(JSON.stringify({ type: "close", code }));
+    });
+    proc.on("error", error => {
+      clearTimeout(timeout);
+      processes.delete(clientId);
+      ws?.send(JSON.stringify({ type: "error", data: error.message }));
+    });
+  };
 
-  // STDERR
-  proc.stderr.on("data", (chunk) => {
-    if (ws) ws.send(JSON.stringify({
-      type: "stderr",
-      data: chunk.toString()
-    }));
-  });
+  // Handle Java
+  if (language === "java") {
+    const compile = spawn("javac", ["Main.java"], { cwd: tempDir, shell: true });
+    compile.stderr.on("data", chunk => ws?.send(JSON.stringify({ type: "stderr", data: chunk.toString() })));
+    compile.on("close", code => {
+      if (code === 0) {
+        const run = spawn("java", ["Main"], { cwd: tempDir, shell: true });
+        processes.set(clientId, run);
+        attachOutput(run);
+      } else {
+        clearTimeout(timeout);
+        ws?.send(JSON.stringify({ type: "close", code: -1 }));
+      }
+    });
+    processes.set(clientId, compile);
+    return res.json({ status: "started" });
+  }
 
-  // Exit
-  proc.on("close", (code) => {
-    clearTimeout(timeout);
-    processes.delete(clientId);
-    if (ws) ws.send(JSON.stringify({ type: "close", code }));
-  });
+  // Handle C++
+  if (language === "cpp") {
+    const compile = spawn("g++", ["code.cpp", "-o", "code"], { cwd: tempDir, shell: true });
+    compile.stderr.on("data", chunk => ws?.send(JSON.stringify({ type: "stderr", data: chunk.toString() })));
+    compile.on("close", code => {
+      if (code === 0) {
+        const run = spawn("./code", [], { cwd: tempDir, shell: true });
+        processes.set(clientId, run);
+        attachOutput(run);
+      } else {
+        clearTimeout(timeout);
+        ws?.send(JSON.stringify({ type: "close", code: -1 }));
+      }
+    });
+    processes.set(clientId, compile);
+    return res.json({ status: "started" });
+  }
 
-  // Errors
-  proc.on("error", (error) => {
-    clearTimeout(timeout);
-    processes.delete(clientId);
-    if (ws) ws.send(JSON.stringify({
-      type: "error",
-      data: error.message
-    }));
+  // Handle PHP, Python, Node
+  const proc = spawn(runners[language].cmd[0], runners[language].cmd.slice(1), {
+    cwd: tempDir,
+    stdio: ["pipe", "pipe", "pipe"],
+    shell: true
   });
+  processes.set(clientId, proc);
+  attachOutput(proc);
 
   res.json({ status: "started" });
 };
 
-// unchanged
+// Handle user input
 export const handleUserInput = (clientId, input) => {
   const proc = processes.get(clientId);
   if (proc && proc.stdin && proc.stdin.writable) {
-    proc.stdin.write(input);
+    proc.stdin.write(input.endsWith("\n") ? input : input + "\n");
   }
 };
 
+// Send input via API
 export const sendInput = (req, res) => {
   const { clientId, input } = req.body;
   const proc = processes.get(clientId);
@@ -113,6 +133,7 @@ export const sendInput = (req, res) => {
   }
 };
 
+// Kill process
 export const killProcess = (req, res) => {
   const { clientId } = req.body;
   const proc = processes.get(clientId);
