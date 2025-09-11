@@ -18,21 +18,6 @@ import { enrollmentRouter } from "./routers/enrollmentRouter.js";
 import { videoRouter } from "./routers/videoRouter.js";
 import dashboardRouter from "./routers/dashboardRouter.js";
 
-const pythonProcess = spawn("./python-service/env/Scripts/python", ["python-service/khqr.py",],{
-  env: {...process.env}
-});
-
-pythonProcess.stdout.on("data", (data) => {
-  console.log(`[PYTHON] ${data.toString()}`);
-});
-
-pythonProcess.stderr.on("data", (data) => {
-  console.error(`[PYTHON LOG] ${data.toString()}`);
-});
-
-pythonProcess.on("close", (code) => {
-  console.log(`[PYTHON] Process exited with code ${code}`);
-});
 
 
 const app = express();
