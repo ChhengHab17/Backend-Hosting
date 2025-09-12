@@ -20,7 +20,7 @@ export const generateQr = async (req, res) => {
 
     // Call Python FastAPI microservice
     const pythonResponse = await axios.post(
-      "https://python-bakong-qr.onrender.com/generate-qr",
+      "https://antarctica-crazy-combat-valuable.trycloudflare.com/generate-qr",
       payload
     );
 
@@ -48,7 +48,7 @@ export const verifyQr = async (req, res) => {
     const { md5 } = req.body;
 
     const response = await axios.post(
-      "https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5",
+      "https://positions-provides-estimate-pci.trycloudflare.com/check-payment",
       { md5 },
       { headers: { Authorization: `Bearer ${process.env.BAKONG_ACCESS_TOKEN}` } }
     );
