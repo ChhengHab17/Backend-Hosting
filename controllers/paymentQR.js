@@ -20,7 +20,7 @@ export const generateQr = async (req, res) => {
 
     // Call Python FastAPI microservice
     const pythonResponse = await axios.post(
-      "https://antarctica-crazy-combat-valuable.trycloudflare.com/generate-qr",
+      "https://sessions-solar-cove-wheat.trycloudflare.com/generate-qr",
       payload
     );
 
@@ -48,7 +48,7 @@ export const verifyQr = async (req, res) => {
     const { md5 } = req.body;
 
     const response = await axios.post(
-      "https://positions-provides-estimate-pci.trycloudflare.com/check-payment",
+      "https://sessions-solar-cove-wheat.trycloudflare.com/check-payment",
       { md5 },
       { headers: { Authorization: `Bearer ${process.env.BAKONG_ACCESS_TOKEN}` } }
     );
