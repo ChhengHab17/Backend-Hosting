@@ -52,7 +52,7 @@ def generate_qr(data: QRRequest):
         "base64" : khqr_image
     }
 
-@app.get("/check-payment/{md5}")
+@app.post("/check-payment/{md5}")
 def check_payment(md5: str):
     result = khqr.check_payment(md5=md5)
     return result
