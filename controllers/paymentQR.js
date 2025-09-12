@@ -20,7 +20,7 @@ export const generateQr = async (req, res) => {
 
     // Call Python FastAPI microservice
     const pythonResponse = await axios.post(
-      "https://heather-blood-sheep-hypothesis.trycloudflare.com/generate-qr",
+      "https://discussing-dangerous-rate-focal.trycloudflare.com/generate-qr",
       payload
     );
 
@@ -48,7 +48,7 @@ export const verifyQr = async (req, res) => {
     const { md5 } = req.body;
 
     const response = await axios.post(
-      "https://heather-blood-sheep-hypothesis.trycloudflare.com/check-payment",
+      "https://discussing-dangerous-rate-focal.trycloudflare.com/check-payment",
       { md5 },
       { headers: { Authorization: `Bearer ${process.env.BAKONG_ACCESS_TOKEN}` } }
     );
