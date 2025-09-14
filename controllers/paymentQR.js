@@ -20,7 +20,7 @@ export const generateQr = async (req, res) => {
 
     // Call Python FastAPI microservice
     const pythonResponse = await axios.post(
-      "https://tampa-gay-sizes-occurring.trycloudflare.com/generate-qr",
+      "https://hear-attract-trading-walt.trycloudflare.com/generate-qr",
       payload
     );
 
@@ -48,7 +48,7 @@ export const verifyQr = async (req, res) => {
     const { md5 } = req.body;
 
     const response = await axios.post(
-      "https://tampa-gay-sizes-occurring.trycloudflare.com/check-payment",
+      "https://hear-attract-trading-walt.trycloudflare.com/check-payment",
       { md5 },
       { headers: { Authorization: `Bearer ${process.env.BAKONG_ACCESS_TOKEN}` } }
     );
